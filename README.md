@@ -1,6 +1,5 @@
-# back2hack
+# Data Hackathon resources
 
-Documentation on tools you may want to use during the http://back2hack.bemyapp.com/ hackathon
+Documentation on tools you may want to use during data hackathons that leverage Microsoft Azure.
 
-please refer to the doc folder for additional docs
-
+Please refer to the doc folder for additional docs
