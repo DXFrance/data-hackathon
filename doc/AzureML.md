@@ -82,3 +82,19 @@ For that, you may want to use the `edit metadata` module in Azure ML.
 ![](azureml/104.png)
 
 ![](azureml/105.png)
+
+## how to use a semicolon (;) separated file in Azure ML
+
+use the same method as before, but the Pyhton code is the following:
+
+
+```
+import pandas as pd
+
+def azureml_main(dataframe1 = None, dataframe2 = None):
+    headercols = dataframe1.columns.values[0].split(";")
+    df = pd.DataFrame(dataframe1[dataframe1.columns[0]].apply(lambda r: r.split(";")).tolist(), columns = headercols)
+    return df,
+```
+
+Instead of using metata module to change types, you may want to use Python. See <http://stackoverflow.com/questions/15891038/pandas-change-data-type-of-columns>.
