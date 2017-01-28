@@ -85,7 +85,11 @@ For that, you may want to use the `edit metadata` module in Azure ML.
 
 ## how to use a semicolon (;) separated file in Azure ML
 
-use the same method as before, but the Pyhton code is the following:
+use the same method as before, but 
+
+1/ you may want to import the CSV file as a TSV file with header (so that commas are not seen as a column change)
+
+2/ the Pyhton code is the following:
 
 
 ```
