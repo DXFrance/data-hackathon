@@ -101,3 +101,7 @@ You can also use the Sample Scripts
 First copy the samples, then execute the 4 sample scripts, in order.
 
 If you want to see a video with the latest news on U-SQL, please refer to <https://channel9.msdn.com/Shows/Data-Exposed/U-SQL-Updates-Whats-New-and-Whats-Changed>.
+
+## sample code
+
+You can also find sample code in the `/code/U-SQL_sample/` folder of this repo.

@@ -1,0 +1,62 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "namingprefix": {
+            "defaultValue": null,
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.DataLakeStore/accounts",
+            "name": "[concat(parameters('namingprefix'),'adls')]",
+            "apiVersion": "2015-10-01-preview",
+            "location": "[resourceGroup().location]",
+            "properties": {},
+            "resources": [],
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.DataLakeAnalytics/accounts",
+            "name": "[concat(parameters('namingprefix'),'adla')]",
+            "apiVersion": "2015-10-01-preview",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "defaultDataLakeStoreAccount": "[concat(parameters('namingprefix'),'adls')]",
+                "dataLakeStoreAccounts": [{
+                    "name": "[concat(parameters('namingprefix'),'adls')]" 
+                }]
+            },
+            "resources": [],
+            "dependsOn": ["[concat('Microsoft.DataLakeStore/accounts/',parameters('namingprefix'),'adls')]"]
+        },
+        {
+            "type": "Microsoft.StreamAnalytics/StreamingJobs",
+            "name": "[concat(parameters('namingprefix'),'asa')]", 
+            "apiVersion": "2016-03-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "sku": {
+                    "name": "Standard"
+                },
+                "outputErrorPolicy": "stop",
+                "eventsOutOfOrderPolicy": "adjust",
+                "eventsOutOfOrderMaxDelayInSeconds": 0,
+                "eventsLateArrivalMaxDelayInSeconds": 5,
+                "dataLocale": "en-US",
+                "inputs": [],
+                "transformation": {
+                    "name": "Transformation",
+                    "properties": {
+                        "streamingUnits": 1,
+                        "query": "SELECT\r\n    *\r\nINTO\r\n    adls\r\nFROM\r\n    iothub"
+                    }
+                }                
+            },
+            "resources": [],
+            "dependsOn": []
+        }
+    ]
+}

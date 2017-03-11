@@ -1,0 +1,140 @@
+﻿REFERENCE ASSEMBLY [Newtonsoft.Json];
+REFERENCE ASSEMBLY [USQLCSharpHelper];
+
+// this query gets a number of information from data in the data lake store
+
+// get the logs by reading each line as one line; also extract datadate and filename from the file path
+@logs = 
+    EXTRACT wholeLine string, datadate string, filename string
+    FROM @"adl://tbrfabrikamadls.azuredatalakestore.net/tbrfabrikamdata/iot/{datadate}/{filename}.json"
+    USING Extractors.Text(encoding:System.Text.Encoding.UTF8, quoting:true, delimiter: Char.MinValue, silent: true);
+
+// parse wholeline as a set of extracted properties from JSON. 
+// This is done by calling the USQLCSharpHelper which can send back properties even if JSON is malformed.
+// select only a subset of files based on date and time
+@int1 =
+    SELECT wholeLine, datadate, filename,
+           filename.Substring(0,2) AS filenameHour,
+           USQLCSharpHelper.PropertiesExtractor.ExtractPropertiesFromJson(wholeLine) AS extracted
+    FROM @logs
+    WHERE datadate == "2017-03-11" AND filename.StartsWith("15"); /* update with your date and time */
+
+// select some fields, and rename them
+@int2 =
+    SELECT datadate,
+           filename,
+           filenameHour,
+           extracted["deviceId"] AS deviceId,
+           double.Parse(extracted["var0Value"]) AS var0Value,
+           extracted["var0Timestamp"] AS var0Timestamp,
+           extracted["message"] AS message,
+           extracted["version"] AS extractorVersion,
+        wholeLine
+    FROM @int1;
+
+// define time windows by truncating date time
+// here, the time window is 1 h. The first 13 character can be for instance 2016-12-09T12
+@int3 =
+    SELECT var0Timestamp.Substring(0, 13) AS TimeWindow,
+           deviceId,
+           var0Value
+    FROM @int2;
+
+// aggregate by device Id and Time Window: min and max, as well as the number of values collected per time window (ex: per hour)
+@int4 =
+    SELECT deviceId,
+           TimeWindow,
+           MIN(var0Value) AS minVar0,
+           MAX(var0Value) AS maxVar0,
+           COUNT( * ) AS nbVar0
+    FROM @int3
+    GROUP BY deviceId,
+             TimeWindow;
+
+// calculate amplitude for var0
+@int5 =
+    SELECT deviceId,
+           TimeWindow,
+           maxVar0 - minVar0 AS amplitudeVar0,
+           nbVar0
+    FROM @int4;
+
+// define an alert when var0 amplitude is > 100
+@alerts1 =
+    SELECT deviceId,
+           TimeWindow,
+           amplitudeVar0,
+           nbVar0
+    FROM @int5
+    WHERE amplitudeVar0 > 100;
+
+// define another type of alerts when var0 value did not change during the time window while there were at least 2 values
+@alerts2 =
+    SELECT deviceId,
+           TimeWindow,
+           amplitudeVar0,
+           nbVar0
+    FROM @int5
+    WHERE amplitudeVar0 == 0 AND nbVar0 > 1;
+
+// define another type of alerts when there are less than 3 values collected during a time window (1 hour)
+@alerts3 =
+    SELECT deviceId,
+           TimeWindow,
+           amplitudeVar0,
+           nbVar0
+    FROM @int5
+    WHERE nbVar0 < 3;
+
+// select messages that had issues from the field extractor perspective (either JSON was malformed, or the var0 value could not be found)
+@badonly =
+    SELECT message,
+           datadate,
+           filename,
+           COUNT( * ) AS nbExceptions
+    FROM @int2
+    WHERE message != "OK"
+    GROUP BY message,
+             datadate,
+             filename;
+
+// select messages that were OK from the field extractor perspective
+@goodonly =
+    SELECT datadate,
+           filename,
+           SUM( var0Value ) AS total_var0
+    FROM @int2
+    WHERE message == "OK"
+    GROUP BY datadate,
+             filename;
+
+//save datasets to files
+
+OUTPUT @int2
+    TO @"adl://tbrfabrikamadls.azuredatalakestore.net/output/job2/All.tsv"
+    USING Outputters.Tsv(quoting: false);
+
+OUTPUT @goodonly
+    TO @"adl://tbrfabrikamadls.azuredatalakestore.net/output/job2/summary.tsv"
+    USING Outputters.Tsv(quoting: false);
+
+OUTPUT @badonly
+    TO @"adl://tbrfabrikamadls.azuredatalakestore.net/output/job2/exceptions.tsv"
+    USING Outputters.Tsv(quoting: false);
+
+OUTPUT @int4
+    TO @"adl://tbrfabrikamadls.azuredatalakestore.net/output/job2/int4.tsv"
+    USING Outputters.Tsv(quoting: false);
+
+OUTPUT @alerts1
+    TO @"adl://tbrfabrikamadls.azuredatalakestore.net/output/job2/alerts1.tsv"
+    USING Outputters.Tsv(quoting: false);
+
+OUTPUT @alerts2
+    TO @"adl://tbrfabrikamadls.azuredatalakestore.net/output/job2/alerts2.tsv"
+    USING Outputters.Tsv(quoting: false);
+
+OUTPUT @alerts3
+    TO @"adl://tbrfabrikamadls.azuredatalakestore.net/output/job2/alerts3.tsv"
+    USING Outputters.Tsv(quoting: false);
+
