@@ -1,4 +1,4 @@
-# how to create an Azure PASS and an organizational account at the same time
+# How to create an Azure PASS subscription and an organizational account at the same time
 
 Open a new In Private or Incognito browser Windows and go to <https://www.microsoftazurepass.com>
 
